@@ -73,14 +73,12 @@ function Params.init()
   
   params:add_control("fft_overlap", "FFT Overlap", specs.FFT_OVERLAP)
   params:set_action("fft_overlap", function(value)
-    -- Note: Need to add this command to Engine_SpectrumSplice.sc
-    -- engine.fft_overlap(value)
+  engine.fft_overlap(value)
   end)
   
   params:add_option("fft_window", "FFT Window", {"Hann", "Hamming", "Sine", "Rect"}, 1)
   params:set_action("fft_window", function(value)
-    -- Note: Need to add this command to Engine_SpectrumSplice.sc
-    -- engine.fft_window(value - 1) -- SuperCollider uses 0-index for windows
+  engine.fft_window(value - 1) -- SuperCollider uses 0-index for windows
   end)
   
   -- Note: We've commented out the FFT overlap and window parameters since 
