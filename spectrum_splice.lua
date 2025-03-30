@@ -1,13 +1,13 @@
 -- spectrum_splice.lua
--- SpectrumSplice: FFT-based spectral processor
+-- Spectrum_Splice: Artistic spectral processor
 --
 -- E1: Change page
--- E2: Select parameter
--- E3: Adjust value
+-- E2: Select macro parameter
+-- E3: Adjust selected parameter
 -- K2: Toggle page
--- K3: Start/stop recording
+-- K3: Toggle freeze
 --
--- v0.2.0
+-- v0.1.0
 
 engine.name = "SpectrumSplice"
 
@@ -15,7 +15,7 @@ local params_manager = include("lib/params")
 local ui = include("lib/ui")
 
 -- Data directory
-local data_dir = _path.data .. "spectrumsplice/"
+local data_dir = _path.data .. "spectrum_splice/"
 local pset_dir = data_dir .. "presets/"
 
 -- Initialize script
@@ -37,15 +37,6 @@ function init()
   
   -- Set encoder sensitivity
   norns.enc.sens(1, 4)  -- Make E1 less sensitive for smoother navigation
-  
-  -- Connect params actions to UI
-  params:set_action("rec_start", function()
-    ui.set_recording(true)
-  end)
-  
-  params:set_action("rec_stop", function()
-    ui.set_recording(false)
-  end)
   
   -- Default parameters
   params:default()
