@@ -8,9 +8,14 @@ local specs = {}
 specs.AMP = controlspec.new(0, 2, "lin", 0.01, 0.8, "")
 specs.MIX = controlspec.new(0, 1, "lin", 0.01, 0.5, "")
 specs.FREEZE = controlspec.new(0, 1, "lin", 1, 0, "")
-specs.SHIFT = controlspec.new(-24, 24, "lin", 0.1, 0, "semitones")
-specs.STRETCH = controlspec.new(0.25, 4, "exp", 0.01, 1, "x")
-specs.FFT_OVERLAP = controlspec.new(0.1, 0.99, "lin", 0.01, 0.5, "")
+
+-- Macro control specs
+specs.TEXTURE = controlspec.new(0, 1, "lin", 0.01, 0.5, "")
+specs.DEFINITION = controlspec.new(0, 1, "lin", 0.01, 0.5, "")
+specs.STRUCTURE = controlspec.new(0, 1, "lin", 0.01, 0.5, "")
+specs.DENSITY = controlspec.new(0, 1, "lin", 0.01, 0.5, "")
+specs.FEEDBACK = controlspec.new(0, 0.95, "lin", 0.01, 0.2, "")
+specs.THRESHOLD = controlspec.new(0, 1, "lin", 0.01, 0.5, "")
 
 -- Initialize parameters
 function Params.init()
@@ -38,52 +43,60 @@ function Params.init()
     end
   end)
   
-  -- Buffer Controls
-  params:add_group("Buffer", 4)
+  -- Character Presets
+  params:add_group("Character", 2)
   
-  params:add_trigger("rec_start", "Start Recording")
-  params:set_action("rec_start", function() 
-    engine.record_start() 
-    -- Add visual feedback
-    params:set("freeze", 0)
+  params:add_option("character", "Character", {"Crystal", "Ink Drawing", "Watercolor", "Frost Pattern", "Particles"}, 1)
+  params:set_action("character", function(value)
+    local characters = {"crystal", "ink", "watercolor", "frost", "particles"}
+    engine.set_character(characters[value])
   end)
   
-  params:add_trigger("rec_stop", "Stop Recording")
-  params:set_action("rec_stop", function() 
-    engine.record_stop() 
+  params:add_option("fft_size", "FFT Size", {"512", "1024", "2048", "4096"}, 2)
+  params:set_action("fft_size", function(value)
+    engine.fft_size(value - 1) -- 0-indexed in engine
   end)
   
-  -- Spectral Processing
-  params:add_group("Spectral", 5)
+  -- Macro Controls
+  params:add_group("Texture Controls", 5)
+  
+  params:add_control("texture", "Texture", specs.TEXTURE)
+  params:set_action("texture", function(value)
+    engine.texture(value)
+  end)
+  
+  params:add_control("definition", "Definition", specs.DEFINITION)
+  params:set_action("definition", function(value)
+    engine.definition(value)
+  end)
+  
+  params:add_control("structure", "Structure", specs.STRUCTURE)
+  params:set_action("structure", function(value)
+    engine.structure(value)
+  end)
+  
+  params:add_control("density", "Density", specs.DENSITY)
+  params:set_action("density", function(value)
+    engine.density(value)
+  end)
+  
+  params:add_control("feedback", "Feedback", specs.FEEDBACK)
+  params:set_action("feedback", function(value)
+    engine.feedback(value)
+  end)
+  
+  -- Special Controls
+  params:add_group("Special", 2)
   
   params:add_binary("freeze", "Freeze", "toggle", 0)
   params:set_action("freeze", function(value)
     engine.freeze(value)
   end)
   
-  params:add_control("shift", "Pitch Shift", specs.SHIFT)
-  params:set_action("shift", function(value)
-    engine.shift(value)
+  params:add_control("threshold", "Threshold", specs.THRESHOLD)
+  params:set_action("threshold", function(value)
+    engine.threshold(value)
   end)
-  
-  params:add_control("stretch", "Stretch", specs.STRETCH)
-  params:set_action("stretch", function(value)
-    engine.stretch(value)
-  end)
-  
-  params:add_control("fft_overlap", "FFT Overlap", specs.FFT_OVERLAP)
-  params:set_action("fft_overlap", function(value)
-  engine.fft_overlap(value)
-  end)
-  
-  params:add_option("fft_window", "FFT Window", {"Hann", "Hamming", "Sine", "Rect"}, 1)
-  params:set_action("fft_window", function(value)
-  engine.fft_window(value - 1) -- SuperCollider uses 0-index for windows
-  end)
-  
-  -- Note: We've commented out the FFT overlap and window parameters since 
-  -- they reference engine commands that don't exist yet in your engine file.
-  -- You'll need to add these commands to Engine_SpectrumSplice.sc
   
   -- Set initial parameter values
   params:bang()
