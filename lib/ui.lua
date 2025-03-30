@@ -1,31 +1,41 @@
 -- SpectrumSplice: UI
--- Basic UI displaying parameters and status
+-- Macro-focused UI for artistic spectral processing
 
 local UI = {}
 local viewport = { width = 128, height = 64, center = { x = 64, y = 32 } }
-local recording_active = false
 
 -- Initialize the UI
 function UI.init()
   UI.page = 1
   UI.pages = 2
   UI.active_param = 1
-  UI.recording_timer = 0
-  UI.recording_blink = false
   
-  -- Start a timer for recording animation
+  -- Visualization state
+  UI.spectrum_data = {}
+  for i = 1, 64 do
+    UI.spectrum_data[i] = 0
+  end
+  
+  -- Start timer for animation
   UI.metro = metro.init()
-  UI.metro.time = 0.5
+  UI.metro.time = 1/15
   UI.metro.event = function()
-    if recording_active then
-      UI.recording_timer = UI.recording_timer + 0.5
-      UI.recording_blink = not UI.recording_blink
+    -- Update visualization data
+    for i = 1, 64 do
+      if params:get("freeze") == 1 then
+        -- Frozen state - minimal movement
+        UI.spectrum_data[i] = UI.spectrum_data[i] * 0.98
+      else
+        -- Active animation
+        local target = math.random() * params:get("density")
+        UI.spectrum_data[i] = UI.spectrum_data[i] * 0.8 + target * 0.2
+      end
     end
   end
   UI.metro:start()
 end
 
--- UI Redraw Function
+-- Main redraw function
 function UI.redraw()
   screen.clear()
   
@@ -48,17 +58,6 @@ function UI.redraw()
     UI.draw_spectrum_page()
   end
   
-  -- Recording indicator
-  if recording_active then
-    screen.level(UI.recording_blink and 15 or 0)
-    screen.circle(viewport.width - 5, 5, 3)
-    screen.fill()
-    
-    screen.level(15)
-    screen.move(viewport.width - 15, 7)
-    screen.text_right(string.format("%.1fs", UI.recording_timer))
-  end
-  
   screen.update()
 end
 
@@ -67,24 +66,27 @@ function UI.draw_main_page()
   screen.font_face(1)
   screen.font_size(8)
   
-  -- Draw parameters
-  local params_to_show = {
-    {name = "Amplitude", value = params:get("amp")},
-    {name = "Mix", value = params:get("mix")},
-    {name = "Freeze", value = params:get("freeze") == 1 and "On" or "Off"},
-    {name = "Shift", value = params:get("shift") .. " st"},
-    {name = "Stretch", value = params:get("stretch") .. "x"}
+  -- Draw character name prominently
+  local char_names = {"Crystal", "Ink Drawing", "Watercolor", "Frost Pattern", "Particles"}
+  local char_idx = params:get("character")
+  
+  screen.level(15)
+  screen.move(viewport.center.x, 20)
+  screen.text_center(char_names[char_idx])
+  
+  -- Draw macro controls
+  local macro_params = {
+    {name = "Texture", id = "texture"},
+    {name = "Definition", id = "definition"},
+    {name = "Structure", id = "structure"},
+    {name = "Density", id = "density"}
   }
   
-  for i, param in ipairs(params_to_show) do
-    local y_pos = 20 + (i-1) * 10
+  for i, param in ipairs(macro_params) do
+    local y_pos = 30 + (i-1) * 8
     
     -- Highlight selected parameter
     if i == UI.active_param then
-      screen.level(15)
-      screen.rect(0, y_pos - 8, viewport.width, 10)
-      screen.level(0)
-      screen.fill()
       screen.level(15)
     else
       screen.level(5)
@@ -92,8 +94,24 @@ function UI.draw_main_page()
     
     screen.move(2, y_pos)
     screen.text(param.name)
-    screen.move(viewport.width - 2, y_pos)
-    screen.text_right(param.value)
+    
+    -- Draw parameter value slider
+    local value = params:get(param.id)
+    local slider_width = 50
+    screen.level(1)
+    screen.rect(70, y_pos - 5, slider_width, 3)
+    screen.fill()
+    
+    screen.level(i == UI.active_param and 15 or 10)
+    screen.rect(70, y_pos - 5, slider_width * value, 3)
+    screen.fill()
+  end
+  
+  -- Show freeze status
+  if params:get("freeze") == 1 then
+    screen.level(15)
+    screen.move(viewport.center.x, viewport.height - 5)
+    screen.text_center("FROZEN")
   end
 end
 
@@ -103,62 +121,139 @@ function UI.draw_spectrum_page()
   screen.font_face(1)
   screen.font_size(8)
   screen.move(2, 20)
-  screen.text("Spectral Display")
+  screen.text("Spectral Visualization")
   
-  -- Buffer visualization
-  screen.level(5)
-  screen.move(2, 30)
-  screen.text("Buffer: ")
+  -- Draw spectral content visualization
+  local definition = params:get("definition")
+  local structure = params:get("structure")
   
-  -- Draw waveform representation
-  local x_pos = 40
-  local width = 80
-  local height = 20
-  screen.rect(x_pos, 25, width, height)
-  screen.stroke()
+  -- Draw the visualization based on character
+  local char_idx = params:get("character")
   
-  -- Show recording status
-  if recording_active then
-    screen.level(15)
-    screen.circle(x_pos + width - 5, 28, 3)
-    screen.fill()
-  end
-  
-  -- Show freeze status
-  if params:get("freeze") == 1 then
-    screen.level(15)
-    screen.move(x_pos + 5, 40)
-    screen.text("FROZEN")
-  end
-  
-  -- Simple placeholder for spectrum visualization
-  screen.level(3)
-  screen.rect(0, 45, viewport.width, 19)
-  screen.fill()
-  
-  -- Draw a placeholder visualization
-  screen.level(15)
-  for i = 0, viewport.width - 1 do
-    local height = 6
-    if params:get("freeze") == 1 then
-      -- Static pattern when frozen
-      height = 3 + math.abs(((i + 30) % 7) - 3) * 2
-    else
-      -- Dynamic pattern when not frozen
-      height = 3 + math.abs(math.sin(i / 8 + (os.time() % 10)) * 6)
-    end
-    screen.move(i, 64 - height)
-    screen.line(i, 64)
-    screen.stroke()
+  -- Different visualization per character
+  if char_idx == 1 then -- Crystal
+    -- Sharp, angular visualization
+    UI.draw_crystalline(definition, structure)
+  elseif char_idx == 2 then -- Ink
+    -- Fine line-based visualization
+    UI.draw_ink(definition, structure)
+  elseif char_idx == 3 then -- Watercolor
+    -- Soft, transparent visualization
+    UI.draw_watercolor(definition, structure)
+  elseif char_idx == 4 then -- Frost
+    -- Geometric pattern visualization
+    UI.draw_frost(definition, structure)
+  else -- Particles
+    -- Particle cloud visualization
+    UI.draw_particles(definition, structure)
   end
 end
 
--- Set recording status
-function UI.set_recording(state)
-  recording_active = state
-  if not state then
-    UI.recording_timer = 0
-    UI.recording_blink = false
+-- Character-specific visualizations
+function UI.draw_crystalline(definition, structure)
+  screen.level(15)
+  
+  -- Draw sharp, crystalline structures
+  for i = 1, 64, 2 do
+    local x = i * 2
+    local height = UI.spectrum_data[i] * 30 * definition
+    
+    if height > 1 then
+      -- Draw angular shape
+      screen.move(x, 64)
+      screen.line_rel(-2 * structure, -height)
+      screen.line_rel(4 * structure, 0)
+      screen.line_rel(-2 * structure, height)
+      screen.stroke()
+    end
+  end
+end
+
+function UI.draw_ink(definition, structure)
+  screen.level(15)
+  
+  -- Draw fine ink-like lines
+  for i = 1, 63 do
+    local x1 = i * 2
+    local x2 = (i + 1) * 2
+    local y1 = 64 - (UI.spectrum_data[i] * 40 * definition)
+    local y2 = 64 - (UI.spectrum_data[i+1] * 40 * definition)
+    
+    -- Draw line with varying thickness
+    local thickness = math.max(1, math.floor(UI.spectrum_data[i] * 3))
+    screen.line_width(thickness)
+    screen.move(x1, y1)
+    screen.line(x2, y2)
+    screen.stroke()
+  end
+  screen.line_width(1)
+end
+
+function UI.draw_watercolor(definition, structure)
+  -- Layered, transparent visualization
+  for j = 1, 3 do
+    screen.level(5 * j)
+    
+    local offset = j * 4
+    local scale = 1 - (j * 0.2)
+    
+    screen.move(0, 64)
+    for i = 1, 64 do
+      local x = i * 2
+      local height = UI.spectrum_data[(i + offset) % 64 + 1] * 30 * definition * scale
+      screen.line(x, 64 - height)
+    end
+    screen.line(128, 64)
+    screen.close()
+    screen.fill()
+  end
+end
+
+function UI.draw_frost(definition, structure)
+  screen.level(15)
+  
+  -- Geometric pattern with connections
+  for i = 1, 64, 4 do
+    local x = i * 2
+    local height = UI.spectrum_data[i] * 40 * definition
+    
+    if height > 3 then
+      -- Draw node
+      screen.circle(x, 64 - height, 1 + UI.spectrum_data[i] * 2)
+      screen.fill()
+      
+      -- Draw connections between nodes
+      if i > 4 and UI.spectrum_data[i-4] * 40 * definition > 3 then
+        local prev_x = (i-4) * 2
+        local prev_height = UI.spectrum_data[i-4] * 40 * definition
+        
+        screen.line_width(1)
+        screen.move(prev_x, 64 - prev_height)
+        screen.line(x, 64 - height)
+        screen.stroke()
+      end
+    end
+  end
+end
+
+function UI.draw_particles(definition, structure)
+  -- Particle-based visualization
+  for i = 1, 64 do
+    local energy = UI.spectrum_data[i]
+    if energy > 0.1 then
+      -- Create multiple particles based on energy
+      local particle_count = math.floor(energy * 10 * definition)
+      
+      for j = 1, particle_count do
+        local x = i * 2 + math.random(-4, 4) * structure
+        local y = 64 - (energy * 30) + math.random(-5, 5) * structure
+        local size = math.random() * energy * 2
+        
+        screen.level(math.random(5, 15))
+        screen.circle(x, y, size)
+        screen.fill()
+      end
+    end
   end
 end
 
@@ -168,24 +263,15 @@ function UI.enc(n, d)
     -- Change page
     UI.page = util.clamp(UI.page + d, 1, UI.pages)
   elseif n == 2 then
-    -- Navigate parameters
+    -- Navigate parameters on main page
     if UI.page == 1 then
-      UI.active_param = util.clamp(UI.active_param + d, 1, 5)
+      UI.active_param = util.clamp(UI.active_param + d, 1, 4)
     end
   elseif n == 3 then
     -- Adjust selected parameter
     if UI.page == 1 then
-      if UI.active_param == 1 then
-        params:delta("amp", d)
-      elseif UI.active_param == 2 then
-        params:delta("mix", d)
-      elseif UI.active_param == 3 then
-        params:delta("freeze", d > 0 and 1 or -1)
-      elseif UI.active_param == 4 then
-        params:delta("shift", d)
-      elseif UI.active_param == 5 then
-        params:delta("stretch", d)
-      end
+      local param_ids = {"texture", "definition", "structure", "density"}
+      params:delta(param_ids[UI.active_param], d / 100)
     end
   end
   
@@ -199,14 +285,8 @@ function UI.key(n, z)
       -- K2: Toggle page
       UI.page = 3 - UI.page  -- Toggle between 1 and 2
     elseif n == 3 then
-      -- K3: Toggle recording/freeze
-      if not recording_active then
-        params:set("rec_start", 1)
-        UI.set_recording(true)
-      else
-        params:set("rec_stop", 1)
-        UI.set_recording(false)
-      end
+      -- K3: Toggle freeze
+      params:set("freeze", 1 - params:get("freeze"))
     end
   end
   
